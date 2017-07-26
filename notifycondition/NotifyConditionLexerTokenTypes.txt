@@ -1,0 +1,18 @@
+// $ANTLR 2.7.7 (20060906): NotifyCondition.g -> NotifyConditionLexerTokenTypes.txt$
+NotifyConditionLexer    // output token vocab name
+WORD=4
+INT=5
+LEFT_PAREN=6
+RIGHT_PAREN=7
+WHITESPACE=8
+LITERAL_or="or"=9
+LITERAL_and="and"=10
+LITERAL_not="not"=11
+LITERAL_true="true"=12
+LITERAL_false="false"=13
+LITERAL_success="success"=14
+LITERAL_failure="failure"=15
+LITERAL_error="error"=16
+LITERAL_changed="changed"=17
+"changed.by.me"=18
+"state.change"=19
