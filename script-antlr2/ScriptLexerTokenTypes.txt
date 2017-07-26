@@ -1,0 +1,9 @@
+// $ANTLR 2.7.7 (20060906): Script.g -> ScriptLexerTokenTypes.txt$
+ScriptLexer    // output token vocab name
+LBRACE=4
+RBRACE=5
+EQUALS=6
+SEMI=7
+WS=8
+LINE_COMMENT=9
+STRING=10
