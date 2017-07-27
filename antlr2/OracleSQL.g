@@ -1,7 +1,48 @@
+/*******************************************************************************
+
+DESCRIPTION:
+		Grammar for Oracle's SELECT statement for ANTLR v3, target C language		
+AUTHOR:
+		Ivan.Brezina (ibre5041@ibrezina.net)
+DATE:
+		MAY 2011
+BASED ON:
+		PLSQL3.g Andrey Kharitonkin (thikone@gmail.com)
+		PLSQLGrammar.g for ANTLR v2
+		Qazi Firdous Ahmed (qazif_ahmed@infosys.com) 
+		Krupa Benhur (krupa_bg@infosys.com)
+		Manojaba Banerjee (manojaba_banerjee@infosys.com)
+		Infosys Technologies Ltd., Bangalore, India
+		Sept 18, 2002
+		This grammar is for PL/SQL.
+COMMENT:
+		This grammar file is based on freely downloadable
+		file PLSQL3.g. I extracted only those rules that
+		are mandatory for DML statements. PL/SQL support was removed
+		and should be handled by a separate grammar.
+		This grammar was tested on a quite large set of SQL statements
+		and handles many "undocumented" Oracle's behaviours.
+ORIGINAL COMMENT:
+		The grammar has been mostly re-written for ANTLR v3,
+		using Oracle 10g Release 2 documentation and ANTLR book.
+		New SQL and PL/SQL expression rules, SQL statments
+		SELECT, INSERT, UPDATE, DELETE are fully supported.
+		Generated parser can parse most of valid PL/SQL and 
+		it was tested with over 10 Mb of test source code.
+		Let me know if something cannot be parsed by this grammar.
+KNOWN ISSUES:
+		XQUERIES are unsupported.
+		Some keywords are treated as reserved ones. If you really insist on idetifiers
+			like: MODEL, JOIN, OUTER or PARTITION put them into double quotes. 
+		"AS OF SNAPSHOT(:X)" construct is not supported yet.
+		Some build-in functions having non-standart calling convention
+			are unsupported too.
+*******************************************************************************/
+
 grammar OracleSQL;
 
 options {
-	language=Java;
+	language=C;
 	backtrack=true;
 	memoize=true;
 	output=AST;
@@ -10,7 +51,7 @@ options {
 tokens {
     T_UNKNOWN = 't_unknown';
     T_RESERVED = 't_reserved';
-    // Identifier subtypes AST leafs
+    // Identifier subtypes AST leafs 
     T_TABLE_ALIAS = 't_table_alias';
     T_COLUMN_ALIAS = 't_column_alias';
     T_COLUMN_NAME = 't_column_name';
@@ -24,11 +65,11 @@ tokens {
     //Alias type(declaration, usage)
     T_DECL = 't_decl';
     T_USE  = 't_use';
-
+    
     //Tree nodes
     T_WITH = 't_with';
-    T_SELECT = 't_select';
-    T_SUBQUERY = 't_subquery';
+    T_SELECT = 't_select'; 
+    T_SUBQUERY = 't_subquery';   
     T_TABLE_CAST = 't_table_cast';
     T_COLUMN_LIST = 't_column_list';
     T_SELECT_COLUMN = 't_select_column';
@@ -71,31 +112,33 @@ tokens {
 }
 
 @lexer::includes {
-
+#include "macros.h"
+#include "error_handler.h"
 }
 
 @parser::includes {
-
+#include "macros.h"
+#include "error_handler.h"
 }
-
+        
 @lexer::apifuncs {
-
+//            RECOGNIZER->displayRecognitionError = myDisplayRecognitionLexerError;
 }
 
 @parser::apifuncs {
-
+//            RECOGNIZER->displayRecognitionError = myDisplayRecognitionParserError;
 }
-
+        
 start_rule
 	: (
             select_statement
         |	update_statement
         |	insert_statement
         |	merge_statement
-        |	delete_statement
-        )
+        |	delete_statement            
+        )            
         (SEMI|EOF)
-        ;
+        ;      
 /* ================================================================================
    DELETE Statement
    ================================================================================ */
@@ -136,7 +179,7 @@ merge_update_clause
 merge_insert_clause
 	: k_when r_not k_matched r_then r_insert (LPAREN column_specs RPAREN)?
         r_values LPAREN (r_default | sql_expression) (COMMA (r_default | sql_expression))* RPAREN
-        where_clause?
+        where_clause? 
     ;
 
 /* ================================================================================
@@ -170,7 +213,7 @@ conditional_insert_clause
         r_else ( insert_into_clause values_clause? )+
     ;
 dml_table_expression_clause
-	:
+	:	
 		( schema_name DOT)? table_name ( partition_extension_clause | AT_SIGN dblink_name)?
 	|	subquery subquery_restricrion_clause? (pivot_clause|unpivot_clause)?
 	|	LPAREN subquery subquery_restricrion_clause? RPAREN
@@ -206,7 +249,7 @@ update_set_clause_part1
     ;
 update_set_clause_part2
 	:	column_spec EQ ( r_default | subquery | sql_expression)
-	;
+	;	
 /* ================================================================================
    SELECT Statement
    ================================================================================ */
@@ -214,23 +257,23 @@ select_statement
 	:
 	subquery_factoring_clause?
 	(
-	(
+	(    
 	sel=r_select /*( hint )?*/ ( r_distinct | r_unique| r_union | r_all )? select_list
 	( r_into data_item (COMMA data_item)*)?
 	r_from
 //        ( table_reference_list | join_clause | LPAREN join_clause RPAREN )
-	table_reference_list
+	table_reference_list        
 	( where_clause )?
 	( hierarchical_query_clause )?
 	( group_by_clause )?
 	( (k_model (k_main|k_partition|k_dimension) ) => model_clause )?
 	( union_clause )*
-	( fu1=for_update_clause )?
+	( fu1=for_update_clause )?        
 	( order_by_clause )?
 	( fu2=for_update_clause )?
 	->	^('t_select'
 		subquery_factoring_clause?
-		$sel r_distinct? r_unique? r_union? r_all?
+		$sel r_distinct? r_unique? r_union? r_all?            
 		select_list
 		^('t_from' r_from table_reference_list/*? join_clause?*/)
 		where_clause?
@@ -238,7 +281,7 @@ select_statement
 		group_by_clause?
 		model_clause?
 		union_clause*
- 		$fu1?
+ 		$fu1?    
 		order_by_clause?
 		$fu2?
 		)
@@ -252,8 +295,8 @@ select_statement
 subquery_factoring_clause
 	:
 	with=r_with
-// NOTE: these two lines were commented out just to preserve COMMAs in parse tree
-//	si1=sql_identifier[T_UNKNOWN,0] (lp1=LPAREN sl1=select_list rp1=RPAREN)? as1=r_as sq1=subquery
+// NOTE: these two lines were commented out just to preserve COMMAs in parse tree        
+//	si1=sql_identifier[T_UNKNOWN,0] (lp1=LPAREN sl1=select_list rp1=RPAREN)? as1=r_as sq1=subquery  
 //	(COMMA si2=sql_identifier[T_UNKNOWN,0] (lp2=LPAREN sl2=select_list rp2=RPAREN)? as2=r_as sq2=subquery)*
 	subquery_factoring_clause_part_first subquery_factoring_clause_part_next*
 	search_clause?
@@ -291,13 +334,13 @@ displayed_column_part_first
     ;
 displayed_column_part_next
 	: c=COMMA displayed_column
-    ;
+    ;        
 displayed_column
 	: (
         asterisk1=ASTERISK
 		| (schema_name d1=DOT)? table=t_alias[T_USE] d2=DOT asterisk2=ASTERISK
 		| sql_expression
-		)
+		)   
 		c_alias?
         -> ^('t_select_column' $asterisk1? schema_name? $d1? $table? $d2? $asterisk2? sql_expression? c_alias? )
     ;
@@ -319,7 +362,7 @@ expr_expr
 	|	datetime_expression
 	|	interval_expression
 	|	( expr_paren ) => expr_paren
-	|	( k_cursor LPAREN ) => cursor_expression
+	|	( k_cursor LPAREN ) => cursor_expression 
 	|	( k_cast LPAREN) => cast_expression
 	|	( k_cluster_set LPAREN ) => special_expression
 	|	object_access_expression
@@ -366,10 +409,10 @@ parameter_name
 // PREDICTION_BOUNDS, PREDICTION, NTILE, NTH_VALUE, MIN, MEDIAN, MAX, LNNVL, LISTAGG, LEAD, LAST_VALUE,
 // LAST, LAG, FIRST_VALUE, FIRST, FEATURE_VALUE, FEATURE_SET, FEATURE_ID, DECOMPOSE, CUME_DIST, CUBE_TABLEC,
 // COVAR_SAMP, COVAR_POP, COUNT, CORR, COLLECT, CLUSTER_SET, CLUSTER_PROBABILITY, CLUSTER_ID, CHR, CAST,
-// AVG,
+// AVG, 
 special_function
 	:
-	(
+	(	
         k_trim
         LPAREN
 			( ( k_leading | k_trailing | k_both)? QUOTED_STRING? r_from )?
@@ -377,7 +420,7 @@ special_function
         RPAREN
 	)
 	| (r_set LPAREN sql_expression RPAREN)
-	| (k_lnnvl LPAREN sql_condition RPAREN)
+	| (k_lnnvl LPAREN sql_condition RPAREN)	
     ;
 
 case_expression
@@ -411,10 +454,10 @@ simple_expression
 	|	k_sql ( FOUND_ATTR | NOTFOUND_ATTR | ISOPEN_ATTR | ROWCOUNT_ATTR | BULK_ROWCOUNT_ATTR )
 	|	( cell_assignment ) => cell_assignment // this is used only in model_clause s[PROD= 'A' ] = S[ 'a' ] + 1
 	|	( column_spec ) => column_spec
-	|	timestamp_expression
+	|	timestamp_expression        
 	|	quoted_string
 	|	NUMBER
-	;
+	;        
 query_block
 	:	r_select /*( hint )?*/ ( r_distinct | r_unique | r_all )? select_list
 		r_from table_reference_list
@@ -429,16 +472,16 @@ subquery
         ( group_by_clause )?
         ( (k_model (k_main|k_partition|k_dimension) ) => model_clause )?
         ( union_clause )*
-        ( fu1=for_update_clause )?
+        ( fu1=for_update_clause )?        
         ( order_by_clause )?
         ( fu2=for_update_clause )?
 	|	LPAREN subquery RPAREN
         ( group_by_clause )?
         ( (k_model (k_main|k_partition|k_dimension) ) => model_clause )?
         ( union_clause )*
-        ( fu1=for_update_clause )?
+        ( fu1=for_update_clause )?        
         ( order_by_clause )?
-        ( fu2=for_update_clause )?
+        ( fu2=for_update_clause )?        
 	;
 
 timestamp_expression
@@ -454,7 +497,7 @@ interval_x_to_y
                 ( k_to (k_year | k_month ))?
             )
         |
-            (
+            (   
                 ( quoted_string | bind_variable)
                 ( k_day | k_hour | k_minute | k_second )
                 (LPAREN precision (COMMA precision)? RPAREN)?
@@ -502,16 +545,16 @@ interval_expression
    ================================================================================ */
 special_expression
 	:	cluster_set_clause
-	;
+	;        
 cluster_set_clause
 	:	k_cluster_set LPAREN column_spec (COMMA column_spec)? (COMMA NUMBER)? k_using (column_specs|ASTERISK) RPAREN
 	;
 
 cast_expression
 	:	k_cast LPAREN (sql_expression | k_multiset subquery) r_as (datatype_name|column_spec) RPAREN
-	;
+	;	
 datatype_name
-	:	k_binary_integer
+	:	k_binary_integer 
 	|	k_binary_float
 	|	k_binary_double
 	|	k_natural
@@ -544,7 +587,7 @@ datatype_name
 	|	k_clob ( k_character r_set ( identifier[T_UNKNOWN,0] | column_spec CHARSET_ATTR ) )?
 	|	k_nclob
 	|	k_bfile
-	|	r_rowid
+	|	r_rowid 
 	|	k_urowid ( LPAREN NUMBER RPAREN )?
 	;
 
@@ -582,11 +625,11 @@ pseudo_column
 	// | k_versions_starttime	// flashback query
 	// | k_versions_starscn
 	// | k_versions_endtime
-	// | k_versions_endscn
-	// | k_versions_xid
+	// | k_versions_endscn 
+	// | k_versions_xid 
 	// | k_versions_operation
 	// | k_column_value	// XMLTABLE query
-	// | k_object_id		//
+	// | k_object_id		// 
 	// | k_object_value	//
 	// | k_ora_rowscn		//
 	// | k_xmldata
@@ -615,7 +658,7 @@ bind_variable
 sql_identifier[int identifierClass, int usageType]
 	:	i=identifier[identifierClass, usageType]
 	|	k=keyword[identifierClass, usageType]
-	|	ri=r_rowid
+	|	ri=r_rowid 
 	|	rn=r_rownum
 	;
 
@@ -628,8 +671,8 @@ table_reference_list
 		)
 //	->('t_from' join_clause? LPAREN? join_clause? RPAREN? table_reference?
 //                (COMMA (join_clause|(LPAREN join_clause RPAREN)|table_reference))*
-//	)
-	;
+//	)   
+	;            
 table_reference
 	:	((k_only LPAREN query_table_expression RPAREN)
 	|	query_table_expression /*( pivot_clause | unpivot_clause )?*/) flashback_query_clause? t_alias[T_DECL]?
@@ -667,7 +710,7 @@ join_clause
 inner_cross_join_clause
 	:	k_inner? k_join table_reference ((r_on sql_condition)|(k_using LPAREN column_specs RPAREN))*
     |	(k_cross | k_natural k_inner?) (k_join table_reference)
-	;
+	;        
 outer_join_clause
 	:	( query_partition_clause )?
 		(	outer_join_type k_join
@@ -680,7 +723,7 @@ query_partition_clause
 	;
 outer_join_type
  	:	( k_full | k_left | k_right ) ( k_outer )?
-	;
+	;        
 
 sample_percent
 	:	NUMBER
@@ -688,7 +731,7 @@ sample_percent
 	;
 seed_value
 	:	NUMBER
-	|	bind_variable
+	|	bind_variable        
 	;
 outer_join_sign
 	:	LPAREN PLUS RPAREN
@@ -709,7 +752,7 @@ column_specs
 	:	column_spec ( COMMA column_spec )*
 	;
 partition
-	:	identifier[T_UNKNOWN,0]
+	:	identifier[T_UNKNOWN,0]        
 	;
 partition_key_value
 	:	identifier[T_UNKNOWN,0] | NUMBER
@@ -897,7 +940,7 @@ condition_group_comparison
 	;
 condition_in
  	:	LPAREN sql_expressions RPAREN ( r_not )? r_in LPAREN ( grouping_expression_list | select_statement ) RPAREN
-	|	sql_expression ( r_not )? r_in LPAREN ( expression_list | select_statement ) RPAREN
+	|	sql_expression ( r_not )? r_in LPAREN ( expression_list | select_statement ) RPAREN        
 	|	sql_expression ( r_not )? r_in sql_expression
 	;
 condition_is_a_set
@@ -974,7 +1017,7 @@ sql_expressions
 grouping_sets_expression_list
 	:
 	(
-
+	
         LPAREN RPAREN
 	|	LPAREN sql_expressions RPAREN
 	|	sql_expression
@@ -1104,7 +1147,7 @@ union_clause
  	(	select_statement |	subquery )
 	-> ^('t_union' r_union? r_all? r_intersect? r_minus? select_statement? subquery?)
 	;
-
+	
 /* ================================================================================
    ORDER BY clause
    ================================================================================ */
@@ -1116,10 +1159,10 @@ order_by_clause
 // NOTE: these two here here only to preserve COMMAs in parse tree
 order_by_clause_part_first
 	:	sql_expression r_asc ? r_desc ? (k_nulls k_first)? (k_nulls k_last)?
-	;
+	;        
 order_by_clause_part_next
 	:	COMMA sql_expression r_asc ? r_desc ? (k_nulls k_first)? (k_nulls k_last)?
-	;
+	;        
 
 /* ================================================================================
    Analytic query part
@@ -1132,19 +1175,19 @@ analytic_function_name
 	// | k_regr_slope	| k_regr_intercept	| k_regr_count	| k_regr_r2	| k_regr_avgx	| k_regr_avgy
 	// | k_regr_sxx	| k_regr_syy	| k_regr_sxy	| k_row_number	| k_stddev	| k_stddev_pop
 	// | k_stddev_samp	| k_sum	| k_var_pop	| k_var_samp	| k_variance
-	function_name
+	function_name        
     ;
 
 analytic_function_call
 	: analytic_function_name LPAREN ( r_distinct | r_unique | r_all)? sql_expression? (COMMA sql_expression)* ( ( k_respect | k_ignore) k_nulls )? RPAREN
 	;
-
+	
 analytic_function
 	: dense_rank_analytic
     | percent_rank_analytic
     | percent_cont_disc_analytic
     | first_last
-	| listagg
+	| listagg        
     | analytic_function_call ( ( k_respect | k_ignore) k_nulls )?  k_over LPAREN analytic_clause RPAREN
 	;
 
@@ -1161,7 +1204,7 @@ windowing_clause_part
     | ( r_current r_row )
     | ( sql_expression ( k_preceding | k_following ) )
 	;
-
+			
 windowing_clause
 	: (r_rows | k_range )
 	  ( windowing_clause_part | ( r_between windowing_clause_part r_and windowing_clause_part) )
@@ -1187,7 +1230,7 @@ aggregate_function
 percent_rank_aggregate
 	:	k_percent_rank LPAREN expression_list RPAREN k_within r_group
         LPAREN r_order r_by sql_expression (r_asc | r_desc)? (k_nulls (k_first | k_last))?
-        (COMMA sql_expression (r_asc | r_desc)? (k_nulls (k_first | k_last))?)*
+        (COMMA sql_expression (r_asc | r_desc)? (k_nulls (k_first | k_last))?)* 
     ;
 dense_rank_aggregate
 	: k_dense_rank LPAREN expression_list RPAREN k_within r_group
@@ -1230,7 +1273,7 @@ for_update_clause_part_first
 for_update_clause_part_next
 	: COMMA (sch1=schema_name dot1a=DOT)? (tbl1=table_name dot1b=DOT)? col1=column_name
 	;
-
+	
 /* ================================================================================
     PIVOT CLAUSE
    ================================================================================ */
@@ -1264,7 +1307,7 @@ unpivot_in_clause
 	;
 constant
 	:	NUMBER | quoted_string
-	;	// TODO fixme
+	;	// TODO fixme        
 
 /* ================================================================================
    Oracle reserved words
@@ -1390,25 +1433,25 @@ r_with : r='WITH' { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
 // 	: r=( 'ACCESS'	| 'ADD'	| 'ALL'	| 'ALTER'	| 'AND'	| 'ANY'	| 'ARRAYLEN'	| 'AS'	| 'ASC'	| 'AUDIT'
 // 	| 'BETWEEN'	| 'BY'
 // 	| 'CASE'
-// 	| 'CHAR'	| 'CHECK'	| 'CLUSTER'	| 'COLUMN'	| 'COMMENT'	| 'COMPRESS'	| 'CONNECT'	| 'CREATE'	| 'CURRENT'
-// 	| 'DATE'	| 'DECIMAL'	| 'DEFAULT'	| 'DELETE'	| 'DESC'	| 'DISTINCT'	| 'DROP'
-// 	| 'ELSE'	| 'EXCLUSIVE'	| 'EXISTS'
-// 	| 'FILE'	| 'FLOAT'	| 'FOR'	| 'FROM'
-// 	| 'GRANT'	| 'GROUP'
-// 	| 'HAVING'
-// 	| 'IDENTIFIED'	| 'IMMEDIATE'	| 'IN'	| 'INCREMENT'	| 'INDEX'	| 'INITIAL'	| 'INSERT'	| 'INTEGER'
-// 	| 'INTERSECT'	| 'INTO'	| 'IS'
-// 	| 'LEVEL'	| 'LIKE'	| 'LOCK'	| 'LONG'
-// 	| 'MAXEXTENTS'	| 'MINUS'	| 'MODE'	| 'MODIFY'
-// 	| 'NOAUDIT'	| 'NOCOMPRESS'	| 'NOT'	| 'NOTFOUND'	| 'NOWAIT'	| 'NULL'	| 'NUMBER'
-// 	| 'OF'	| 'OFFLINE'	| 'ON'	| 'ONLINE'	| 'OPTION'	| 'OR'	| 'ORDER'
-// 	| 'PCTFREE'	| 'PRIOR'	| 'PRIVILEGES'	| 'PUBLIC'
-// 	| 'RAW'	| 'RENAME'	| 'RESOURCE'	| 'REVOKE'	| 'ROW'	| 'ROWID'	| 'ROWLABEL'	| 'ROWNUM'	| 'ROWS'
-// 	| 'SELECT'	| 'SESSION'	| 'SET'	| 'SHARE'	| 'SIZE'	| 'SMALLINT'	| 'SQLBUF'
-// 	| 'START'	| 'SUCCESSFUL'	| 'SYNONYM'	| 'SYSDATE'
-// 	| 'TABLE'	| 'THEN'	| 'TO'	| 'TRIGGER'
-// 	| 'UID'	| 'UNION'	| 'UNIQUE'	| 'UPDATE'	| 'USER'
-// 	| 'VALIDATE'	| 'VALUES'	| 'VARCHAR'	| 'VARCHAR2'	| 'VIEW'
+// 	| 'CHAR'	| 'CHECK'	| 'CLUSTER'	| 'COLUMN'	| 'COMMENT'	| 'COMPRESS'	| 'CONNECT'	| 'CREATE'	| 'CURRENT'	
+// 	| 'DATE'	| 'DECIMAL'	| 'DEFAULT'	| 'DELETE'	| 'DESC'	| 'DISTINCT'	| 'DROP'	
+// 	| 'ELSE'	| 'EXCLUSIVE'	| 'EXISTS'	
+// 	| 'FILE'	| 'FLOAT'	| 'FOR'	| 'FROM'	
+// 	| 'GRANT'	| 'GROUP'	
+// 	| 'HAVING'	
+// 	| 'IDENTIFIED'	| 'IMMEDIATE'	| 'IN'	| 'INCREMENT'	| 'INDEX'	| 'INITIAL'	| 'INSERT'	| 'INTEGER'	
+// 	| 'INTERSECT'	| 'INTO'	| 'IS'	
+// 	| 'LEVEL'	| 'LIKE'	| 'LOCK'	| 'LONG'	
+// 	| 'MAXEXTENTS'	| 'MINUS'	| 'MODE'	| 'MODIFY'	
+// 	| 'NOAUDIT'	| 'NOCOMPRESS'	| 'NOT'	| 'NOTFOUND'	| 'NOWAIT'	| 'NULL'	| 'NUMBER'	
+// 	| 'OF'	| 'OFFLINE'	| 'ON'	| 'ONLINE'	| 'OPTION'	| 'OR'	| 'ORDER'	
+// 	| 'PCTFREE'	| 'PRIOR'	| 'PRIVILEGES'	| 'PUBLIC'	
+// 	| 'RAW'	| 'RENAME'	| 'RESOURCE'	| 'REVOKE'	| 'ROW'	| 'ROWID'	| 'ROWLABEL'	| 'ROWNUM'	| 'ROWS'	
+// 	| 'SELECT'	| 'SESSION'	| 'SET'	| 'SHARE'	| 'SIZE'	| 'SMALLINT'	| 'SQLBUF'	
+// 	| 'START'	| 'SUCCESSFUL'	| 'SYNONYM'	| 'SYSDATE'	
+// 	| 'TABLE'	| 'THEN'	| 'TO'	| 'TRIGGER'	
+// 	| 'UID'	| 'UNION'	| 'UNIQUE'	| 'UPDATE'	| 'USER'	
+// 	| 'VALIDATE'	| 'VALUES'	| 'VARCHAR'	| 'VARCHAR2'	| 'VIEW'	
 // 	| 'WHENEVER'	| 'WHERE'	| 'WITH'
 // 	) //{ $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }
 // 	  //{ $type = T_RESERVED; }
@@ -1783,7 +1826,7 @@ k_connect_by_root       : r='CONNECT_BY_ROOT' { $r->setType($r, T_RESERVED); $r-
 k_constraint            : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->chars, "CONSTRAINT")) }? r=ID { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
 //k_corr                : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->chars, "CORR")) }? r=ID { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
 k_count                 : r='COUNT' { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
-//k_count               : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->chars, "COUNT")) }? r=ID { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
+//k_count               : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->chars, "COUNT")) }? r=ID { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ; 
 //k_covar_pop           : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->chars, "COVAR_POP")) }? r=ID { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
 //k_covar_samp          : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->chars, "COVAR_SAMP")) }? r=ID { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
 k_cross                 : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->chars, "CROSS")) }? r=ID { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
@@ -1873,12 +1916,12 @@ k_mlslabel              : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->cha
 k_model : {
     !(strcasecmp((const char*)LT(2)->getText(LT(2))->chars, "MAIN")) ||
     !(strcasecmp((const char*)LT(2)->getText(LT(2))->chars, "PARTITION")) ||
-    !(strcasecmp((const char*)LT(2)->getText(LT(2))->chars, "DIMENSION"))
+    !(strcasecmp((const char*)LT(2)->getText(LT(2))->chars, "DIMENSION")) 
    }? r='MODEL' { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
 // i_model : {
 //     (strcasecmp((const char*)LT(2)->getText(LT(2))->chars, "MAIN")) &&
 //     (strcasecmp((const char*)LT(2)->getText(LT(2))->chars, "PARTITION")) &&
-//     (strcasecmp((const char*)LT(2)->getText(LT(2))->chars, "DIMENSION"))
+//     (strcasecmp((const char*)LT(2)->getText(LT(2))->chars, "DIMENSION")) 
 //    }? r='MODEL' { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
 //k_model : r='MODEL' { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
 //k_model : { !(strcasecmp((const char*)LT(1)->getText(LT(1))->chars, "MODEL")) }? r=ID { $r->setType($r, T_RESERVED); $r->user1 = T_RESERVED;  }  ;
@@ -2113,7 +2156,7 @@ keyword[int identifierClass, int usageType]
 //         | 'MIVALUE'
 //         | 'MLSLABEL'
 //           //| 'MODEL'
-//        | i_model
+//        | i_model	
 //         | 'MONTH'
 //             //| 'MULTISET'
          | 'NAN'
@@ -2190,7 +2233,7 @@ keyword[int identifierClass, int usageType]
 //         | 'THE'
 //         | 'TIME'
          | 'TIMESTAMP'
-//         | 'TO'
+//         | 'TO'		            
 //         | 'TYPE'
 //         | 'UNBOUNDED'
 //         | 'UNDER_PATH'
@@ -2215,7 +2258,7 @@ keyword[int identifierClass, int usageType]
 //             // | 'VERSIONS_XID'
 //         | 'WAIT'
 		| 'WHEN'
-//         | 'WITHIN'
+//         | 'WITHIN'        
 //         | 'XML'
 //         | 'XMLDATA'
 //         | 'YEAR'
@@ -2247,12 +2290,12 @@ fragment QS_OTHER
 			oldLA = INPUT->istream->_LA;
             INPUT->setUcaseLA(INPUT, ANTLR3_FALSE);
 		}
-		:
+		:	
 		QUOTE delimiter=QS_OTHER_CH
-/* JAVA Syntax */
+/* JAVA Syntax */        
 // 		( { input.LT(1) != $delimiter.text.charAt(0) || ( input.LT(1) == $delimiter.text.charAt(0) && input.LT(2) != '\'') }? => . )*
 // 		( { input.LT(1) == $delimiter.text.charAt(0) && input.LT(2) == '\'' }? => . ) QUOTE
-/* C Syntax */
+/* C Syntax */ 
 		( { LA(1) != $delimiter->getText(delimiter)->chars[0] || LA(2) != '\'' }? => . )*
 		( { LA(1) == $delimiter->getText(delimiter)->chars[0] && LA(2) == '\'' }? => . ) QUOTE
  		{ INPUT->istream->_LA = oldLA; }
@@ -2284,7 +2327,7 @@ fragment
 POINT
 	:	'.'
 	;
-COMMA
+COMMA 
 	:	','
 	;
 ASTERISK
@@ -2378,7 +2421,7 @@ NUMBER
 		|	NUM
 		)
 		( 'E' ( PLUS | MINUS )? NUM )?
-		( 'D' | 'F')?
+		( 'D' | 'F')?		
     ;
 fragment
 NUM

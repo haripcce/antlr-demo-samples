@@ -15,9 +15,9 @@ public class TestParser {
         ScriptLexer lexer = new ScriptLexer(reader);
         ScriptParser parser = new ScriptParser(lexer);
         parser.script();
-
-        CommonAST ast = (CommonAST)parser.getAST();
-        DumpASTVisitor visitor = new DumpASTVisitor();
-        visitor.visit(ast);
+        System.out.println(parser.getAST().toStringList());
+      //  CommonAST ast = (CommonAST)parser.getAST();
+      //  DumpASTVisitor visitor = new DumpASTVisitor();
+      //  visitor.visit(ast);
     }
 }

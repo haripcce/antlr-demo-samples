@@ -1,0 +1,305 @@
+1) specifying lexer and parser section
+
+antlr2
+class FooParser extends Parser;
+foo : FOO ;
+
+class FooLexer extends Lexer;
+FOO : "foo" ;
+
+antlr4
+grammar Foo;
+foo : FOO 'keyword' '*=' ;
+
+FOO : 'foo' ;
+
+
+2) specify tokens sections
+
+antlr2 example :
+tokens {
+    T_UNKNOWN = "t_unknown";
+    T_RESERVED = "t_reserved";
+    }
+
+antlr4 example :
+tokens {
+    T_UNKNOWN ,
+    T_RESERVED
+    }
+
+3) header
+antlr2 example :
+header {
+
+}
+
+antlr4 example :
+@header {
+
+}
+
+4) setting lookahead depth
+antlr2 example :
+options { k=2;  }
+using LL(K)
+
+antlr4 example :
+options {   }
+using ALL(*)
+
+5) setting tokens
+antlr2 example :
+STAR2:  "**";
+
+antlr4 example :
+STAR2:  '**';
+
+6)syntactic predicates
+ANTLR 4 does not support syntactic predicates because its lookahead algorithm
+fully supports infinite lookahead.
+If you used the form (x) => y previously, in ANTLR 4 you can simply use y
+
+antlr2 example :
+A syntactic predicate in ANTLR 2 had the following form:
+
+(stuff) =>
+
+Syntactic predicates were only used to work around a prediction weakness in ANTLR 2 & 3
+that is not present in ANTLR 4
+
+
+CHARACTER_LITERAL
+:
+(TIC_SIMPLE_NAME)=> TIC_SIMPLE_NAME {$setType(TIC_SIMPLE_NAME);}
+;
+
+antlr4 example :
+CHARACTER_LITERAL
+:
+TIC_SIMPLE_NAME {$setType(TIC_SIMPLE_NAME);}
+;
+
+
+7) semantic predicates
+antlr2
+There are 3 types of semantic predicates:
+
+a)validating semantic predicates;
+RULE { /* a boolean expression in here */ }?
+
+number
+@init { int N = 0; }
+  :  (Digit { N++; } )+ { N <= 10 }?
+  ;
+
+b)gated semantic predicates;
+{ /* a boolean expression in here */ }?=> RULE
+
+number
+@init { int N = 1; }
+  :  ( { N <= 10 }?=> Digit { N++; } )+
+  ;
+
+c)disambiguating semantic predicates.
+like a validating predicate ({boolean-expression}?),
+but acts more like a gated semantic predicate
+(no exception is thrown when the boolean expression evaluates to false)
+
+
+Semantic predicates are still supported,
+but in ANTLR 4 all semantic predicates work like gated semantic predicates in ANTLR 3.
+If you used the form {x}? => y previously,
+then in ANTLR 4 you can simply use {x}? yeded)
+
+The semantic predicates {...}? in V4 work like the gated semantic predicates did in V3.
+The ungated predicates from V3 do not have a counterpart in ANTLR 4.
+
+antlr4 example :
+{input.LT(1).getType() == RBRACE}? =>
+converted to
+{_input.LT(1).getType() == RBRACE}?
+
+
+8) file extentiion
+antlr2 extention .g
+antlr4 extention .g4
+
+9)keyword
+antlr2 - protected
+
+protected
+LETTER : '0'..'9' ;
+
+antlr4 - fragment
+fragment
+LETTER : '0'..'9' ;
+
+10)	non greedy rule
+antlr2 example
+COMMENT : '/*' (
+            options {
+                greedy=false;
+            }
+        :   .
+        )*
+         '*/' -> skip ; // .*? matches anything until the first */
+
+
+antlr 4 example :
+COMMENT : '/*' .*? '*/' -> skip ; // .*? matches anything until the first */
+
+11)greedy rule
+antlr2 example
+ID : ('a'..'z')+ (options {greedy=true;}:WS)? ;
+or
+ID : ('a'..'z')+ (WS)? ;
+
+antlr4 example
+ID : ('a'..'z')+ (WS)? ;
+
+11)Token Skipping / Hiding
+antlr2 example
+$setType(Token.SKIP);
+
+antlr4 example
+WS  :  (' '|'\t')+ -> skip();
+
+or
+
+WS
+    :   (' ' | '\t' | '\r'| '\n') -> channel(HIDDEN)
+    ;
+
+12)Code section for members must now be labelled
+
+antlr2 example:
+class FooParser extends Parser;
+
+{
+    int i;
+}
+
+foo : FOO ;
+
+antlr4 example:
+grammar Foo;
+
+@members {
+    int i;
+}
+
+foo : FOO ;
+
+
+13) Literals are always in single quotes, not double quotes
+
+14)In ANTLR 2 you could write initialization code for a rule directly after the rule statement
+antlr2 example
+foo
+{
+    int i;
+}
+FOO;
+
+antlr4 example
+foo
+@init{
+    int i;
+}
+FOO;
+
+15) Labels on elements within a production are denoted with an equals-sign, not a colon:
+antlr2 example
+lp:LPAREN a:arguments RPAREN
+
+antlr4 example
+lp=LPAREN a=arguments RPAREN {String t = $a.text+$lp.text;}
+
+16)Multiple Elements Sharing a Label Name
+
+In ANTLR 2, it was necessary to give elements in a production unique label names.
+antlr2 example
+statement
+    :    (declaration e1:SEMI
+         |assignExpr e2:SEMI
+         )
+         {print(#e1==null?#e2:#e1);}
+    ;
+
+ANTLR 4 allows several elements to share the same label.
+antlr4 example
+statement
+    :    (declaration e=SEMI
+         |assignExpr e=SEMI
+         )
+         {print($e);}
+    ;
+
+17)Parentheses no Longer Mandatory With Cardinality Operators
+antlr2 example
+compilationUnit
+    :   (annotations)?
+        (packageDeclaration)?
+        (importDeclaration)*
+        (typeDeclaration)+
+    ;
+
+antlr4 example
+compilationUnit
+    :   annotations?
+        packageDeclaration?
+        importDeclaration*
+        typeDeclaration+
+    ;
+
+18)Changing the Type of Tokens in the Lexer
+antlr2 example
+{ $setType(TOKEN); }
+
+antlr4 example
+{ setType(TOKEN); }
+
+19)Case-Insensitivity
+
+antlr2 example
+options {
+    caseSensitive=false
+}
+
+antlr4 example
+Handle case insensitivity directly in a grammar
+Following the FAQ on abbreviated keywords, we can write a token to accept letters of either case:
+SELECT : ('S'|'s')('E'|'e')('L'|'l')('E'|'e')('C'|'c')('T'|'t') ;
+https://theantlrguy.atlassian.net/wiki/spaces/ANTLR3/pages/2687342/How+do+I+get+case+insensitivity
+
+19)Lookahead in Actions and Semantic Predicates
+If your actions or semantic predicates used LT() or LA() methods of ANTLR 2,
+these will need to be prefixed with 'input.'
+in ANTLR 3, as the methods are no londer defined by the parser class.
+
+antlr2 example
+{LA(1)==LCURLY}? (block)
+{LT(1).getText().equals("namespace")}? IDENT
+// in lexer,
+{ LA(2)!='/' }? '*'
+
+antlr4 example
+{input.LA(1)==LCURLY}? (block)
+{input.LT(1).getText().equals("namespace")}? IDENT
+// in lexer,
+{ input.LA(2)!='/' }? '*'
+
+20)Newline Tracking in Lexical Actions
+ANTLR 3 tracks newlines by itself, so if your ANTLR 2 lexical actions included calls to 'newline()',
+these must be removed (the method has gone).
+
+21)No More XXXTokenTypes Interface
+ANTLR 3 doesn't generate the XXXTokenTypes interface for grammar 'XXX' any more.
+ The constants are now generated directly in both the parser and lexer implementation classes.
+
+ antlr2 example
+ MyGrammerTokenTypes.LBRACK
+
+ antlr4 example
+ MyGrammar.LBRACK
